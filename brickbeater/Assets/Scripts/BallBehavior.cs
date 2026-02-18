@@ -2,53 +2,55 @@ using UnityEngine;
 
 public class BallBehavior : MonoBehaviour
 {
-    [SerializeField] private float _LaunchForce = 3.0f;
+    [SerializeField] private float _launchForce = 3.0f;
+    [SerializeField] private float _paddleInfluence = 0.3f;
+    [SerializeField] private float _speedMultiplier = 1.1f;
 
-
-    private Vector2 _direction;
-    
     private Rigidbody2D _rb;
-    
-void Start()
-{
-  _rb = GetComponent<Rigidbody2D>();
 
-    // Ternary operator ; condition ? pass : fail
-    _direction.y = Random.value > 0.5f ? 1 : -1;
-    _direction.x = Random.value > 0.5f ? 1 : -1;
-
-    _rb.AddForce(_direction * _LaunchForce, ForceMode2D.Impulse);
-}
-
-void OnTriggerEnter2D(Collider2D other)
+    void Start()
     {
-        ResetBall();
-    }
+        _rb = GetComponent<Rigidbody2D>();
 
-void ResetBall()
-    {
-        _rb.linearVelocity = Vector2.zero;
-        transform.position = Vector3.zero;
+        Vector2 direction = Random.insideUnitCircle;
 
-        Vector2 direction = new Vector2
-        (GetNonZeroRandomFloat(), 
-        GetNonZeroRandomFloat()).normalized;
-
-        _rb.AddForce(direction * _LaunchForce, ForceMode2D.Impulse);
-    }
-void Update()
-{
-    
-}
-float GetNonZeroRandomFloat(float min = -1.0f, float max = 1.0f)
-    {
-        float num;
-
-        do
+        if (Mathf.Abs(direction.x) < 0.25f)
         {
-            num = Random.Range(min, max);
-        } while (Mathf.Approximately(num, 0.0f));
+            direction.x += 0.5f * Mathf.Sign(direction.x);
+        }
 
-        return num;
+        _rb.AddForce(direction.normalized * _launchForce, ForceMode2D.Impulse);
+    }
+
+    private void OnCollisionEnter2D(Collision2D other)
+    {
+        if (other.gameObject.CompareTag("Paddle"))
+        {
+            if (!Mathf.Approximately(other.rigidbody.linearVelocity.y, 0.0f))
+            {
+                Debug.Log(other.rigidbody);
+
+                Vector2 direction = _rb.linearVelocity * (1.0f - _paddleInfluence)
+                    + other.rigidbody.linearVelocity * _paddleInfluence;
+
+                _rb.linearVelocity = _rb.linearVelocity.magnitude * direction.normalized;
+            }
+
+            _rb.linearVelocity *= _speedMultiplier;
+        }
+    }
+
+   void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.gameObject.CompareTag("KillZone"))
+        {
+            GameBehavior.Instance.Score();
+            Destroy(gameObject);
+        }
+        else
+        {
+            GameBehavior.Instance.Points += 10;
+            Destroy(gameObject);
+        }
     }
 }
